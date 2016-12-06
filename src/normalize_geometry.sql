@@ -1,11 +1,11 @@
 /* *************************************************************************************************
 NormalizeGeometry - PL/pgSQL function to remove spikes and simplify geometries with PostGIS
     Author          : Gaspare Sganga
-    Version         : 1.0
+    Version         : 1.1.0
     License         : MIT
     Documentation   : http://gasparesganga.com/labs/postgis-normalize-geometry/
 ************************************************************************************************* */
-CREATE OR REPLACE FUNCTION normalize_geometry( 
+CREATE OR REPLACE FUNCTION normalize_geometry(
     PAR_geom                        geometry, 
     PAR_area_threshold              double precision, 
     PAR_angle_threshold             double precision, 
