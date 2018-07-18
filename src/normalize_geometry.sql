@@ -45,16 +45,16 @@ BEGIN
     END CASE;
     
     ARR_output := '{}'::geometry[];
-    FOR REC_linestrings IN 
+    FOR REC_linestrings IN EXECUTE $Q$
         SELECT array_agg(COALESCE(ext_rings, (rdump).geom) ORDER BY (rdump).path[1]) AS geoms 
             FROM (
                 SELECT row_number() OVER (PARTITION BY rings) AS r, COALESCE(rings, source) AS rdump 
-                    FROM                ST_Dump(PAR_geom)           AS source 
-                    LEFT JOIN LATERAL   ST_DumpRings(source.geom)   AS rings    ON VAR_is_polygon 
+                    FROM                ST_Dump($1)                 AS source 
+                    LEFT JOIN LATERAL   ST_DumpRings(source.geom)   AS rings    ON $2 
             ) AS d 
-            LEFT JOIN LATERAL ST_ExteriorRing((rdump).geom) AS ext_rings    ON VAR_is_polygon 
+            LEFT JOIN LATERAL ST_ExteriorRing((rdump).geom) AS ext_rings    ON $2 
             GROUP BY r 
-    LOOP
+    $Q$ USING PAR_geom, VAR_is_polygon LOOP 
         ARR_parts := '{}'::geometry[];
         FOREACH VAR_linestring IN ARRAY REC_linestrings.geoms LOOP 
             VAR_tot := ST_NPoints(VAR_linestring);
