@@ -1,9 +1,9 @@
 /* *************************************************************************************************
 NormalizeGeometry - PL/pgSQL function to remove spikes and simplify geometries with PostGIS
     Author          : Gaspare Sganga
-    Version         : 1.1.0
+    Version         : 1.2.0dev
     License         : MIT
-    Documentation   : http://gasparesganga.com/labs/postgis-normalize-geometry/
+    Documentation   : https://gasparesganga.com/labs/postgis-normalize-geometry/
 ************************************************************************************************* */
 CREATE OR REPLACE FUNCTION normalize_geometry(
     PAR_geom                        geometry, 
@@ -13,7 +13,7 @@ CREATE OR REPLACE FUNCTION normalize_geometry(
     PAR_null_area                   double precision, 
     PAR_union                       boolean DEFAULT true 
 ) RETURNS geometry AS $$
--- Full documentation at http://gasparesganga.com/labs/postgis-normalize-geometry/
+-- Full documentation at https://gasparesganga.com/labs/postgis-normalize-geometry/
 DECLARE
     REC_linestrings record;
     ARR_output      geometry[];
@@ -46,12 +46,14 @@ BEGIN
     
     ARR_output := '{}'::geometry[];
     FOR REC_linestrings IN 
-        SELECT array_agg((CASE WHEN VAR_is_polygon THEN ST_ExteriorRing((rdump).geom) ELSE (rdump).geom END) ORDER BY (rdump).path[1]) AS geoms 
+        SELECT array_agg(COALESCE(ext_rings, (rdump).geom) ORDER BY (rdump).path[1]) AS geoms 
             FROM (
-                SELECT row_number() OVER () AS r, (CASE WHEN VAR_is_polygon THEN ST_DumpRings(geom) ELSE ST_Dump(geom) END) AS rdump 
-                    FROM (SELECT (ST_Dump(PAR_geom)).geom) AS p 
+                SELECT row_number() OVER (PARTITION BY rings) AS r, COALESCE(rings, source) AS rdump 
+                    FROM                ST_Dump(PAR_geom)           AS source 
+                    LEFT JOIN LATERAL   ST_DumpRings(source.geom)   AS rings    ON VAR_is_polygon 
             ) AS d 
-        GROUP BY r 
+            LEFT JOIN LATERAL ST_ExteriorRing((rdump).geom) AS ext_rings    ON VAR_is_polygon 
+            GROUP BY r 
     LOOP
         ARR_parts := '{}'::geometry[];
         FOREACH VAR_linestring IN ARRAY REC_linestrings.geoms LOOP 
